@@ -115,8 +115,8 @@ function MiniWorldMap({ riskData }: { riskData: any[] }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const w = canvas.width = canvas.offsetWidth * 2;
-    const h = canvas.height = canvas.offsetHeight * 2;
+    const w = (canvas.width = canvas.offsetWidth * 2);
+    const h = (canvas.height = canvas.offsetHeight * 2);
     ctx.scale(2, 2);
     const dw = w / 2;
     const dh = h / 2;
@@ -130,28 +130,71 @@ function MiniWorldMap({ riskData }: { riskData: any[] }) {
       return { x, y };
     };
 
-    // Draw dots
+    // Draw Grid landmass (Dotted World Map Aesthetic)
+    ctx.fillStyle = "rgba(100, 140, 200, 0.15)";
+    const dotSpacing = 4;
+    const rows = Math.floor(dh / dotSpacing);
+    const cols = Math.floor(dw / dotSpacing);
+
+    // Landmass approximation function (Simplified)
+    const isLand = (x: number, y: number) => {
+      const nx = (x / dw) * 360 - 180;
+      const ny = 90 - (y / dh) * 180;
+      
+      // Simple logic to draw continents
+      // Americas
+      if (nx > -130 && nx < -40 && ny > -50 && ny < 70) {
+        if (nx < -100 && ny < 15) return false; // Gulf of Mexico approx
+        return true;
+      }
+      // Eurasia + Africa
+      if (nx > -20 && nx < 150 && ny > -35 && ny < 80) {
+        if (nx < 40 && ny < 30 && ny > 10) return false; // Sahara/Arabia gap approx
+        return true;
+      }
+      // Australia
+      if (nx > 110 && nx < 155 && ny > -40 && ny < -10) return true;
+      
+      return false;
+    };
+
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const x = j * dotSpacing;
+        const y = i * dotSpacing;
+        if (isLand(x, y)) {
+          ctx.beginPath();
+          ctx.arc(x, y, 0.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Draw Risk dots
     const time = Date.now();
-    riskData.slice(0, 15).forEach((c: any) => {
-      // Approx coordinates
+    riskData.slice(0, 20).forEach((c: any) => {
       const coords: Record<string, [number, number]> = {
         UA: [48.38, 31.16], RU: [61.52, 105.32], IR: [32.43, 53.69], YE: [15.55, 48.52],
         SY: [34.80, 38.99], KP: [40.34, 127.51], CN: [35.86, 104.20], PK: [30.38, 69.35],
         NG: [9.08, 8.68], TW: [23.70, 120.96], IL: [31.05, 34.85], TR: [38.96, 35.24],
+        US: [37.09, -95.71], BR: [-14.23, -51.92], AU: [-25.27, 133.77], DE: [51.16, 10.45],
+        FR: [46.22, 2.21], GB: [55.37, -3.43], IN: [20.59, 78.96], JP: [36.20, 138.25]
       };
       const coord = coords[c.code] || [0, 0];
+      if (coord[0] === 0 && coord[1] === 0) return;
+      
       const pos = project(coord[0], coord[1]);
       const color = getRiskColor(c.riskLevel);
       const pulse = Math.sin(time * 0.003 + pos.x * 0.05) * 0.3 + 0.7;
       const size = c.riskLevel === "critical" ? 5 : c.riskLevel === "high" ? 4 : 3;
 
       // Glow
-      const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, size * 4 * pulse);
-      grad.addColorStop(0, color + "66");
+      const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, size * 5 * pulse);
+      grad.addColorStop(0, color + "55");
       grad.addColorStop(1, "transparent");
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(pos.x, pos.y, size * 4 * pulse, 0, Math.PI * 2);
+      ctx.arc(pos.x, pos.y, size * 5 * pulse, 0, Math.PI * 2);
       ctx.fill();
 
       // Dot
@@ -159,10 +202,16 @@ function MiniWorldMap({ riskData }: { riskData: any[] }) {
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Center highlight
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, size * 0.3, 0, Math.PI * 2);
+      ctx.fill();
     });
 
     animRef.current = requestAnimationFrame(draw);
-  }, []);
+  }, [riskData]);
 
   useEffect(() => {
     animRef.current = requestAnimationFrame(draw);
@@ -197,7 +246,7 @@ export default function DashboardOverview() {
           <div className="flex items-center gap-4 mt-1">
             <p className="text-sm flex items-center gap-2" style={{ color: "var(--color-text-muted)" }}>
                 <Clock className="w-3.5 h-3.5" />
-                Live Sync: {lastUpdate ? lastUpdate.toLocaleTimeString() : 'Connecting...'} {isSyncing && '(Updating...)'}
+                Live Sync: {lastUpdate ? lastUpdate.toLocaleTimeString('en-US') : 'Connecting...'} {isSyncing && '(Updating...)'}
             </p>
             <button 
                 onClick={() => alert("System Sync Initialized: Re-verifying GDELT ingress and market volatility indices.")}
@@ -468,7 +517,7 @@ export default function DashboardOverview() {
                       )}
                     </div>
                     <p className="text-lg font-bold font-mono" style={{ color: "var(--color-text-primary)" }}>
-                      {c.rate > 1000 ? c.rate.toLocaleString() : c.rate.toFixed(3)}
+                      {c.rate > 1000 ? c.rate.toLocaleString('en-US') : c.rate.toFixed(3)}
                     </p>
                     <div className="flex items-center gap-1 mt-1">
                       {c.change24h > 0 ? (

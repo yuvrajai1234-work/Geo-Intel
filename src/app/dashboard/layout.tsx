@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 
 import { LiveIntelligenceProvider } from "@/context/LiveIntelligenceContext";
+import { countryRiskData, threatEvents } from "@/lib/mockData";
+import { Search as SearchIcon, Flag, AlertCircle } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -37,6 +39,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchVisible, setSearchVisible] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const filteredItems = [
+    ...navItems.map(item => ({ ...item, type: 'page' })),
+    ...countryRiskData.map(c => ({ 
+      label: c.country, 
+      href: `/dashboard/risk-scores?country=${c.code}`, 
+      icon: Flag, 
+      type: 'country',
+      subtitle: `${c.region} • ${c.riskLevel} risk`
+    })),
+    ...threatEvents.map(t => ({ 
+      label: t.title, 
+      href: `/dashboard/threats?id=${t.id}`, 
+      icon: AlertCircle, 
+      type: 'threat',
+      subtitle: `${t.country} • ${t.severity}`
+    }))
+  ].filter(item => 
+    item.label.toLowerCase().includes(searchQuery.toLowerCase())
+  ).slice(0, 10);
 
   const handleLogout = () => {
     // In a real app, you'd clear session/tokens here
@@ -139,24 +176,72 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             borderBottom: "1px solid var(--color-glass-border)",
           }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 relative">
             <div
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm group transition-all"
               style={{
                 background: "var(--color-dark-700)",
                 border: "1px solid var(--color-glass-border)",
                 color: "var(--color-text-muted)",
+                width: "300px",
               }}
             >
-              <Search className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Search threats, countries, events...</span>
+              <Search className="w-3.5 h-3.5 group-focus-within:text-accent-gold" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search threats, countries, events..."
+                className="bg-transparent border-none outline-none text-xs w-full text-text-primary"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSearchVisible(true);
+                }}
+                onFocus={() => setSearchVisible(true)}
+              />
               <kbd
-                className="hidden md:inline text-[10px] px-1.5 py-0.5 rounded ml-8"
+                className="hidden md:inline text-[10px] px-1.5 py-0.5 rounded"
                 style={{ background: "var(--color-dark-600)", color: "var(--color-text-muted)" }}
               >
                 ⌘K
               </kbd>
             </div>
+
+            {/* Search Results Dropdown */}
+            {searchVisible && searchQuery && (
+              <div 
+                className="absolute top-full left-0 mt-2 w-full glass-card overflow-hidden z-50 shadow-2xl"
+                onMouseLeave={() => setSearchVisible(false)}
+              >
+                <div className="max-h-[300px] overflow-y-auto">
+                  {filteredItems.length > 0 ? (
+                    filteredItems.map((item) => (
+                      <button
+                        key={item.href}
+                        onClick={() => {
+                          router.push(item.href);
+                          setSearchQuery("");
+                          setSearchVisible(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[rgba(100,140,200,0.08)] transition-colors text-left border-b border-glass-border last:border-0"
+                      >
+                        <div className={`p-1.5 rounded ${item.type === 'threat' ? 'bg-red-500/10' : item.type === 'country' ? 'bg-blue-500/10' : 'bg-dark-600'}`}>
+                          <item.icon className={`w-3.5 h-3.5 ${item.type === 'threat' ? 'text-red-500' : item.type === 'country' ? 'text-blue-400' : 'text-accent-gold'}`} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">{item.label}</p>
+                          <p className="text-[10px] text-gray-500 truncate">{item.subtitle || `Navigate to ${item.label} module`}</p>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center">
+                      <p className="text-xs text-gray-500 font-medium italic">No results found for "{searchQuery}"</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
