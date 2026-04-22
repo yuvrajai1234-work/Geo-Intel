@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Globe,
@@ -17,6 +17,7 @@ import {
   Shield,
   Bell,
   Search,
+  LogOut,
 } from "lucide-react";
 
 import { LiveIntelligenceProvider } from "@/context/LiveIntelligenceContext";
@@ -34,7 +35,13 @@ const navItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+
+  const handleLogout = () => {
+    // In a real app, you'd clear session/tokens here
+    router.push("/auth");
+  };
 
   return (
     <LiveIntelligenceProvider>
@@ -91,6 +98,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             })}
           </div>
         </nav>
+
+        {/* Logout Option */}
+        <div className="px-3 py-1">
+          <button
+            onClick={handleLogout}
+            className="sidebar-link w-full text-left"
+            title={collapsed ? "Logout" : undefined}
+            style={collapsed ? { justifyContent: "center", padding: "10px", color: "var(--color-accent-red)" } : { color: "var(--color-accent-red)" }}
+          >
+            <LogOut className="w-[18px] h-[18px] shrink-0" />
+            {!collapsed && <span>Logout</span>}
+          </button>
+        </div>
 
         {/* Collapse Toggle */}
         <div className="p-3 shrink-0" style={{ borderTop: "1px solid var(--color-glass-border)" }}>
