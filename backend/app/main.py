@@ -13,7 +13,7 @@ from app.pipeline import news_cache, fetch_latest_gdelt, schedule_daily_fetch
 app = FastAPI(title="Geo‑Intel API", version="0.1")
 
 # Initialise model (will auto‑train synthetic if missing)
-MODEL_PATH = Path(__file__).parent / "models" / "risk_model.pkl"
+MODEL_PATH = Path(__file__).parent.parent / "models" / "risk_model.pkl"
 predictor = Predictor(MODEL_PATH)
 
 # ---------- SSE generator ---------------------------------------------------
